@@ -1,19 +1,21 @@
 # discord-appkit
 
-Private toolkit to make Discord application deployment declarative and reproducible for FetchCord 3 (`testing` / fastfetch) and 2.x.
+Tool for declaring Discord applications and assets, and for writing CI that applies them.
 
-## Commands
+The project that uses the tool owns the manifests, images, lockfile, and workflows. This repository is the tool.
 
 ```bash
-pip install -e ".[dev]"
 appkit validate apps/
 appkit plan apps/
-appkit apply apps/ --no-dry-run          # binds existingId; uploads if DISCORD_USER_TOKEN is set
-appkit emit --format fetchcord --out fetchcord_ids.generated.json
-appkit emit --format fetchcord-testing --out /tmp/fetchcord-resources
-appkit import-ids catalog/fetchcord-testing
+appkit apply apps/ --no-dry-run
+appkit publish
+appkit ci init /path/to/project
 ```
 
-`apply` never runs from CI. The `plan-comment` workflow posts `validate` + `plan` on PRs that touch apps/assets. `emit-fetchcord` is workflow_dispatch only.
+On FetchCord, keep `apps/`, `assets/`, and `state/ids.lock.json` in that repo, then:
 
-Auth for live apply is `DISCORD_USER_TOKEN` (Developer Portal owner account). Do not commit it.
+```bash
+appkit ci init .
+```
+
+That writes a workflow which installs this tool and runs it against FetchCord's own files. Set `DISCORD_USER_TOKEN` on FetchCord's `discord-portal` environment if that workflow should upload assets.

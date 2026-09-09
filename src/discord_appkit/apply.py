@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from .discord_api import DiscordPortal
 from .hashing import sha256_file
 from .models import AssetLock, DiscordApplication, LockEntry, Lockfile
@@ -31,5 +32,13 @@ def apply_manifests(manifests: list[DiscordApplication], lock: Lockfile, repo_ro
             assets[asset.name] = AssetLock(file=asset.file, sha256=digest, discord_asset_id=discord_id)
         if live and portal is not None and manifest.spec.flags.bot and manifest.spec.commands:
             portal.put_commands(app_id, manifest.spec.commands)
-        lock.applications[name] = LockEntry(name=name, category=manifest.metadata.category, application_id=app_id, keys=list(manifest.metadata.keys), vendor=manifest.metadata.vendor, assets=assets)
+        lock.applications[name] = LockEntry(
+            name=name,
+            category=manifest.metadata.category,
+            application_id=app_id,
+            keys=list(manifest.metadata.keys),
+            vendor=manifest.metadata.vendor,
+            annotations=dict(manifest.metadata.annotations),
+            assets=assets,
+        )
     return lock

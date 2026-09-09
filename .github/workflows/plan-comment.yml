@@ -1,7 +1,7 @@
 name: plan-comment
 on:
   pull_request:
-    paths: ["apps/**", "assets/**", "state/**", "src/**", "catalog/**"]
+    paths: ["apps/**", "assets/**", "state/**", "src/**", "schemas/**"]
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -16,7 +16,6 @@ jobs:
       - run: pip install -e .
       - name: validate and plan
         run: |
-          appkit import-ids catalog/fetchcord-testing
           appkit validate apps/ | tee /tmp/appkit-out.txt
           appkit plan apps/ | tee -a /tmp/appkit-out.txt
       - name: comment

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +8,7 @@ from pydantic import BaseModel, Field
 class AssetSpec(BaseModel):
     name: str = Field(max_length=32)
     file: str
-    type: Literal["rich", "cover"] = "rich"
+    type: str = "rich"
 
 
 class AppFlags(BaseModel):
@@ -18,22 +17,13 @@ class AppFlags(BaseModel):
 
 
 class Metadata(BaseModel):
+    """Consumer-neutral identity. Category, keys, and vendor are labels for emitters."""
+
     name: str
-    category: Literal[
-        "distro",
-        "cpu",
-        "gpu",
-        "terminal",
-        "motherboard",
-        "shell",
-        "desktop",
-        "windowmanager",
-        "version",
-        "bot",
-        "other",
-    ]
+    category: str = Field(min_length=1)
     keys: list[str] = Field(default_factory=list)
     vendor: str | None = None
+    annotations: dict[str, str] = Field(default_factory=dict)
 
 
 class Spec(BaseModel):
@@ -45,8 +35,8 @@ class Spec(BaseModel):
 
 
 class DiscordApplication(BaseModel):
-    apiVersion: Literal["appkit.discord/v1"]
-    kind: Literal["DiscordApplication"]
+    apiVersion: str = "appkit.discord/v1"
+    kind: str = "DiscordApplication"
     metadata: Metadata
     spec: Spec
     source: Path | None = None
@@ -64,6 +54,7 @@ class LockEntry(BaseModel):
     application_id: str
     keys: list[str] = Field(default_factory=list)
     vendor: str | None = None
+    annotations: dict[str, str] = Field(default_factory=dict)
     assets: dict[str, AssetLock | str] = Field(default_factory=dict)
 
     def asset_file(self, name: str) -> str | None:

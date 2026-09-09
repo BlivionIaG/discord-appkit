@@ -8,30 +8,64 @@ from typing import Any
 
 import httpx
 
+from .secrets import SecretStr, load_user_token, redact
+
+
+class DiscordApiError(RuntimeError):
+    def __init__(self, method: str, path: str, status: int, detail: str = "") -> None:
+        self.method = method
+        self.path = path
+        self.status = status
+        message = f"Discord API {method} {path} failed ({status})"
+        if detail:
+            message = f"{message}: {detail}"
+        super().__init__(message)
+
 
 class DiscordPortal:
-    def __init__(self, token: str | None = None, base: str | None = None) -> None:
-        self.token = token or os.environ.get("DISCORD_USER_TOKEN", "")
+    def __init__(self, token: str | SecretStr | None = None, base: str | None = None) -> None:
+        if isinstance(token, SecretStr):
+            self.token = token
+        else:
+            self.token = load_user_token(token)
         self.base = (base or os.environ.get("DISCORD_API_BASE") or "https://discord.com/api/v10").rstrip("/")
         if not self.token:
             raise RuntimeError("DISCORD_USER_TOKEN is not set")
 
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": self.token.reveal(),
+            "User-Agent": "discord-appkit/0.3",
+        }
+
     def _client(self) -> httpx.Client:
-        return httpx.Client(base_url=self.base, headers={"Authorization": self.token, "User-Agent": "discord-appkit/0.2"}, timeout=30.0)
+        return httpx.Client(base_url=self.base, headers=self._headers(), timeout=30.0)
+
+    def _safe_detail(self, response: httpx.Response) -> str:
+        try:
+            body = response.text[:300]
+        except httpx.HTTPError:
+            body = ""
+        return redact(body, self.token)
 
     def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         delay = 1.0
-        last = None
+        last: httpx.Response | None = None
         for _ in range(6):
-            with self._client() as client:
-                last = client.request(method, url, **kwargs)
+            try:
+                with self._client() as client:
+                    last = client.request(method, url, **kwargs)
+            except httpx.HTTPError:
+                raise RuntimeError(redact(f"Discord API {method} {url} transport error", self.token)) from None
             if last.status_code != 429:
-                last.raise_for_status()
+                if last.is_error:
+                    raise DiscordApiError(method, url, last.status_code, self._safe_detail(last))
                 return last
             time.sleep(float(last.headers.get("Retry-After", delay)))
             delay = min(delay * 2, 30)
-        last.raise_for_status()
-        return last
+        if last is None:
+            raise RuntimeError(f"Discord API {method} {url} failed")
+        raise DiscordApiError(method, url, last.status_code, self._safe_detail(last))
 
     def list_applications(self) -> list[dict[str, Any]]:
         return self._request("GET", "/applications").json()
