@@ -16,4 +16,4 @@ def load_lock(path: Path = DEFAULT_LOCK) -> Lockfile:
 
 def save_lock(lock: Lockfile, path: Path = DEFAULT_LOCK) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(lock.model_dump(), indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(lock.model_dump(mode="json"), indent=2) + "\n", encoding="utf-8")
