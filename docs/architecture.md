@@ -1,18 +1,18 @@
 # Architecture
 
-This tool manages Discord applications and assets, and writes the CI that syncs the resulting catalogs into another project.
+discord-appkit is the tool. The consumer repository owns the jobs, assets, and declarations.
 
 ```
-apps/*.yaml + assets/*
+consumer repo
+  apps/*.yaml
+  assets/*
+  state/ids.lock.json
         |
         v
-appkit plan / apply
+  CI installs discord-appkit
         |
         v
-state/ids.lock.json
-        |
-        v
-appkit emit --format <consumer> --out <dir>
+  appkit plan / apply / publish
 ```
 
-`appkit ci init` writes that emit step into the consumer repository. FetchCord uses `--format fetchcord-testing` and `--out fetch_cord/resources`. The tool is not limited to that format.
+`appkit ci init` writes that CI into the consumer repo. FetchCord is one consumer; its resource catalogs and images do not live here.

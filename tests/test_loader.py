@@ -16,7 +16,7 @@ metadata:
   annotations:
     consumer: example
 spec:
-  description: Not a FetchCord application
+  description: Not a consumer-specific application
   flags:
     richPresence: true
 """,

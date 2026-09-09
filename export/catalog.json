@@ -1,37 +1,4 @@
 {
   "version": 1,
-  "applications": [
-    {
-      "name": "fetchcord-cpu-ryzen7",
-      "applicationId": "740752899054895105",
-      "category": "cpu",
-      "keys": [
-        "ryzen 7"
-      ],
-      "vendor": null,
-      "annotations": {},
-      "assets": [
-        {
-          "name": "ryzen7",
-          "file": "assets/cpu/ryzen7.png"
-        }
-      ]
-    },
-    {
-      "name": "fetchcord-distro-arch",
-      "applicationId": "740476198437650473",
-      "category": "distro",
-      "keys": [
-        "arch"
-      ],
-      "vendor": null,
-      "annotations": {},
-      "assets": [
-        {
-          "name": "arch",
-          "file": "assets/distro/arch.png"
-        }
-      ]
-    }
-  ]
+  "applications": []
 }

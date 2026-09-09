@@ -1,19 +1,21 @@
 # discord-appkit
 
-Tool for managing Discord applications and assets, and for writing the CI that syncs them.
+Tool for declaring Discord applications and assets, and for writing CI that applies them.
+
+The project that uses the tool owns the manifests, images, lockfile, and workflows. This repository is the tool.
 
 ```bash
 appkit validate apps/
 appkit plan apps/
 appkit apply apps/ --no-dry-run
 appkit publish
-appkit ci init /path/to/project --format fetchcord-testing --out fetch_cord/resources
+appkit ci init /path/to/project
 ```
 
-`ci init` writes a workflow into the project that will run it. On FetchCord that is:
+On FetchCord, keep `apps/`, `assets/`, and `state/ids.lock.json` in that repo, then:
 
 ```bash
-appkit ci init . --format fetchcord-testing --out fetch_cord/resources
+appkit ci init .
 ```
 
-Commit that workflow. FetchCord CI then checks out this tool and syncs catalogs into `fetch_cord/resources`. The Discord token stays on a protected environment and is not written into that workflow.
+That writes a workflow which installs this tool and runs it against FetchCord's own files. Set `DISCORD_USER_TOKEN` on FetchCord's `discord-portal` environment if that workflow should upload assets.

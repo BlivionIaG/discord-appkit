@@ -1,0 +1,9 @@
+apiVersion: appkit.discord/v1
+kind: DiscordApplication
+metadata:
+  name: example-presence
+  category: other
+spec:
+  description: Example Discord application managed by discord-appkit
+  flags:
+    richPresence: true

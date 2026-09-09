@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "discord-appkit"
 version = "0.3.0"
-description = "Reproducible Discord application and Rich Presence asset deployment"
+description = "CLI and CI helper for managing Discord applications and assets"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

@@ -1,23 +1,4 @@
 {
   "version": 1,
-  "applications": {
-    "fetchcord-distro-arch": {
-      "name": "fetchcord-distro-arch",
-      "category": "distro",
-      "application_id": "740476198437650473",
-      "keys": ["arch"],
-      "assets": {
-        "arch": "assets/distro/arch.png"
-      }
-    },
-    "fetchcord-cpu-ryzen7": {
-      "name": "fetchcord-cpu-ryzen7",
-      "category": "cpu",
-      "application_id": "740752899054895105",
-      "keys": ["ryzen 7"],
-      "assets": {
-        "ryzen7": "assets/cpu/ryzen7.png"
-      }
-    }
-  }
+  "applications": {}
 }
