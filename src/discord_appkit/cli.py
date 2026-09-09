@@ -3,88 +3,67 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-
 import typer
-
-from .emit import emit_fetchcord
+from .apply import apply_manifests
+from .discord_api import DiscordPortal
+from .emit import emit_fetchcord, emit_fetchcord_testing
+from .import_ids import catalogs_to_lock, load_testing_catalog, load_v2_map, write_manifests
 from .loader import load_manifests
 from .lockfile import DEFAULT_LOCK, load_lock, save_lock
-from .models import LockEntry
 from .plan import build_plan
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
-
-def _root() -> Path:
-    return Path.cwd()
-
-
 @app.command()
 def validate(apps: Path = typer.Argument(Path("apps"))) -> None:
-    manifests = load_manifests(apps)
-    typer.echo(f"ok {len(manifests)} manifest(s)")
-
+    typer.echo(f"ok {len(load_manifests(apps))} manifest(s)")
 
 @app.command()
-def plan(
-    apps: Path = typer.Argument(Path("apps")),
-    lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock"),
-) -> None:
-    manifests = load_manifests(apps)
-    lock = load_lock(lock_path)
-    rendered = build_plan(manifests, lock, _root()).render()
-    typer.echo(rendered)
-
+def plan(apps: Path = typer.Argument(Path("apps")), lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock")) -> None:
+    typer.echo(build_plan(load_manifests(apps), load_lock(lock_path), Path.cwd()).render())
 
 @app.command()
-def emit(
-    lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock"),
-    format: str = typer.Option("fetchcord", "--format"),
-) -> None:
+def emit(lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock"), format: str = typer.Option("fetchcord", "--format"), out: Path | None = typer.Option(None, "--out")) -> None:
     lock = load_lock(lock_path)
-    if format != "fetchcord":
-        raise typer.BadParameter("only --format fetchcord is implemented")
-    typer.echo(json.dumps(emit_fetchcord(lock), indent=4))
-
-
-@app.command()
-def apply(
-    apps: Path = typer.Argument(Path("apps")),
-    lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock"),
-    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run"),
-) -> None:
-    """Apply is gated. Live Discord writes land in a follow-up commit.
-
-    Today this only binds existingId values into the lockfile so emit works
-    before the HTTP client exists.
-    """
-    if not dry_run and not os.environ.get("DISCORD_USER_TOKEN"):
-        raise typer.Exit("DISCORD_USER_TOKEN is required for --no-dry-run")
-
-    manifests = load_manifests(apps)
-    lock = load_lock(lock_path)
-    typer.echo(build_plan(manifests, lock, _root()).render())
-
-    if dry_run:
-        typer.echo("dry-run: lockfile unchanged (pass --no-dry-run to bind existingId)")
+    if format == "fetchcord":
+        text = json.dumps(emit_fetchcord(lock), indent=4) + "\n"
+        if out:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(text, encoding="utf-8")
+        else:
+            typer.echo(text, nl=False)
         return
+    if format == "fetchcord-testing":
+        files = emit_fetchcord_testing(lock)
+        dest = out or Path("-")
+        if dest.as_posix() == "-":
+            typer.echo(json.dumps(files, indent=2))
+            return
+        dest.mkdir(parents=True, exist_ok=True)
+        for name, content in files.items():
+            (dest / name).write_text(json.dumps(content, indent=2) + "\n", encoding="utf-8")
+        typer.echo(f"wrote {len(files)} file(s) to {dest}")
+        return
+    raise typer.BadParameter("supported formats: fetchcord, fetchcord-testing")
 
-    for manifest in manifests:
-        name = manifest.metadata.name
-        app_id = manifest.spec.existingId
-        if not app_id:
-            typer.echo(f"skip {name}: no existingId and create-via-API is not wired yet")
-            continue
-        lock.applications[name] = LockEntry(
-            name=name,
-            category=manifest.metadata.category,
-            application_id=app_id,
-            keys=list(manifest.metadata.keys),
-            assets={a.name: a.file for a in manifest.spec.assets},
-        )
+@app.command("import-ids")
+def import_ids(source: Path = typer.Argument(...), apps: Path = typer.Option(Path("apps"), "--apps"), lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock")) -> None:
+    catalogs = load_testing_catalog(source) if source.is_dir() else load_v2_map(source)
+    lock = catalogs_to_lock(catalogs)
+    save_lock(lock, lock_path)
+    n = write_manifests(lock, apps)
+    typer.echo(f"imported {n} application(s) -> {apps} and {lock_path}")
+
+@app.command()
+def apply(apps: Path = typer.Argument(Path("apps")), lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock"), dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run")) -> None:
+    manifests = load_manifests(apps)
+    lock = load_lock(lock_path)
+    typer.echo(build_plan(manifests, lock, Path.cwd()).render())
+    if dry_run:
+        typer.echo("dry-run: lockfile unchanged")
+        return
+    live = bool(os.environ.get("DISCORD_USER_TOKEN"))
+    portal = DiscordPortal() if live else None
+    lock = apply_manifests(manifests, lock, Path.cwd(), portal, live=live)
     save_lock(lock, lock_path)
     typer.echo(f"wrote {lock_path}")
-
-
-if __name__ == "__main__":
-    app()
