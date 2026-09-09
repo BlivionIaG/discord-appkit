@@ -1,8 +1,8 @@
-"""Install and run the FetchCord asset sync.
+"""FetchCord call contract.
 
-discord-appkit declares Discord applications. This module writes those
-declarations into a FetchCord checkout and installs the CI that keeps
-``fetch_cord/resources`` in sync. Secret values are never written.
+discord-appkit owns Discord applications and assets. The FetchCord org calls
+one command, ``appkit fetchcord``, either locally or from CI. The Discord
+user token never leaves this repo.
 """
 
 from __future__ import annotations
@@ -16,74 +16,74 @@ from .adapters.fetchcord import emit_fetchcord_testing, merge_resources
 from .lockfile import DEFAULT_LOCK, load_lock
 
 RESOURCES_DIR = Path("fetch_cord/resources")
-WORKFLOW_PATH = Path(".github/workflows/sync-discord-assets.yml")
+WORKFLOW_PATH = Path(".github/workflows/deploy-discord-assets.yml")
 CONFIG_PATH = Path(".github/discord-appkit.yml")
+DISPATCH_EVENT = "fetchcord-deploy"
 
 DEFAULT_APPKIT_REPO = "BlivionIaG/discord-appkit"
 DEFAULT_FETCHCORD_REPO = "fetchcord/FetchCord"
 
-WORKFLOW_TEMPLATE = """name: sync-discord-assets
+CALLER_WORKFLOW = """name: deploy-discord-assets
 
 # Installed by discord-appkit.
-# Syncs declared Discord application catalogs into fetch_cord/resources.
-# Does not read DISCORD_USER_TOKEN. Do not add pull_request or pull_request_target.
+# The FetchCord org calls discord-appkit. This file does not deploy Discord
+# itself and must not define DISCORD_USER_TOKEN.
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
-  pull-requests: write
+    inputs:
+      apply:
+        description: Ask appkit to upload assets to Discord before syncing catalogs
+        type: boolean
+        default: false
+      fetchcord_ref:
+        description: FetchCord ref appkit should update
+        type: string
+        default: testing
 
 jobs:
-  sync:
+  call:
     if: github.event_name == 'workflow_dispatch' && github.repository == '__FETCHCORD_REPO__'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - name: checkout FetchCord
-        uses: actions/checkout@v4
-
-      - name: checkout discord-appkit
+      - name: call discord-appkit
         env:
-          APPKIT_READ_TOKEN: ${{ secrets.APPKIT_READ_TOKEN }}
+          APPKIT_DISPATCH_TOKEN: ${{ secrets.APPKIT_DISPATCH_TOKEN }}
+          APPLY: ${{ inputs.apply }}
+          FETCHCORD_REF: ${{ inputs.fetchcord_ref }}
         run: |
           set +x
-          if [ -z "$APPKIT_READ_TOKEN" ]; then
-            echo "APPKIT_READ_TOKEN is not set"
+          if [ -z "$APPKIT_DISPATCH_TOKEN" ]; then
+            echo "APPKIT_DISPATCH_TOKEN is not set"
             exit 1
           fi
-          git -c "http.extraheader=AUTHORIZATION: bearer ${APPKIT_READ_TOKEN}" \\
-            clone --depth 1 --branch "__APPKIT_REF__" \\
-            "https://github.com/__APPKIT_REPO__.git" /tmp/discord-appkit
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: declare catalogs
-        working-directory: /tmp/discord-appkit
-        run: |
-          pip install -e .
-          appkit sync-fetchcord "$GITHUB_WORKSPACE"
-
-      - name: open pull request if catalogs changed
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set +x
-          git config user.name "discord-appkit"
-          git config user.email "appkit@users.noreply.github.com"
-          git add fetch_cord/resources
-          if git diff --cached --quiet; then
-            echo "catalogs already match declared assets"
-            exit 0
-          fi
-          branch="appkit/sync-assets-${GITHUB_RUN_ID}"
-          git checkout -b "$branch"
-          git commit -m "chore: sync declared Discord application catalogs"
-          git push origin "HEAD:refs/heads/${branch}"
-          gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \\
-            --title "chore: sync declared Discord application catalogs" \\
-            --body "Declared by discord-appkit. Application IDs only. No tokens."
+          python - <<'PY'
+          import json, os, urllib.request
+          apply = os.environ.get("APPLY", "false") == "true"
+          body = json.dumps({
+              "event_type": "__EVENT__",
+              "client_payload": {
+                  "fetchcord_repo": "__FETCHCORD_REPO__",
+                  "fetchcord_ref": os.environ["FETCHCORD_REF"],
+                  "apply": apply,
+              },
+          }).encode()
+          req = urllib.request.Request(
+              "https://api.github.com/repos/__APPKIT_REPO__/dispatches",
+              data=body,
+              headers={
+                  "Authorization": f"Bearer {os.environ['APPKIT_DISPATCH_TOKEN']}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(req) as resp:
+              if resp.status not in (200, 204):
+                  raise SystemExit(f"dispatch failed: {resp.status}")
+          print("dispatched fetchcord-deploy to __APPKIT_REPO__")
+          PY
 """
 
 
@@ -109,7 +109,7 @@ def resources_dir(checkout: Path) -> Path:
 
 
 def sync_checkout(checkout: Path, lock_path: Path = DEFAULT_LOCK) -> list[str]:
-    """Merge declared application catalogs into a FetchCord resources directory."""
+    """Declare lockfile application catalogs into a FetchCord resources directory."""
     lock = load_lock(lock_path)
     emitted = emit_fetchcord_testing(lock)
     if not emitted:
@@ -120,30 +120,33 @@ def sync_checkout(checkout: Path, lock_path: Path = DEFAULT_LOCK) -> list[str]:
 def render_config(appkit_repo: str, appkit_ref: str) -> str:
     payload = {
         "version": 1,
+        "contract": "appkit fetchcord",
         "resources": RESOURCES_DIR.as_posix(),
         "appkit": {
             "repo": appkit_repo,
             "ref": appkit_ref,
-            "lock": DEFAULT_LOCK.as_posix(),
+            "event": DISPATCH_EVENT,
         },
         "secrets": {
-            "read_appkit": "APPKIT_READ_TOKEN",
+            "dispatch": "APPKIT_DISPATCH_TOKEN",
         },
     }
     header = (
-        "# Written by discord-appkit. Secret names only; never store token values here.\n"
+        "# Written by discord-appkit.\n"
+        "# Names only. Do not store DISCORD_USER_TOKEN or any token value here.\n"
     )
     return header + yaml.safe_dump(payload, sort_keys=False)
 
 
 def render_workflow(appkit_repo: str, appkit_ref: str, fetchcord_repo: str) -> str:
     text = (
-        WORKFLOW_TEMPLATE.replace("__FETCHCORD_REPO__", fetchcord_repo)
+        CALLER_WORKFLOW.replace("__FETCHCORD_REPO__", fetchcord_repo)
         .replace("__APPKIT_REPO__", appkit_repo)
         .replace("__APPKIT_REF__", appkit_ref)
+        .replace("__EVENT__", DISPATCH_EVENT)
     )
-    if "DISCORD_USER_TOKEN" in text and "Does not read DISCORD_USER_TOKEN" not in text:
-        raise ValueError("workflow must not reference a Discord user token")
+    if "secrets.DISCORD_USER_TOKEN" in text:
+        raise ValueError("FetchCord caller must not reference a Discord user token")
     return text
 
 
@@ -152,7 +155,7 @@ def setup_checkout(
     appkit_repo: str = DEFAULT_APPKIT_REPO,
     appkit_ref: str = "master",
     fetchcord_repo: str = DEFAULT_FETCHCORD_REPO,
-    sync: bool = True,
+    sync: bool = False,
     lock_path: Path = DEFAULT_LOCK,
 ) -> list[Path]:
     resources_dir(checkout)

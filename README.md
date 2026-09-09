@@ -1,25 +1,26 @@
 # discord-appkit
 
-Tooling that declares Discord applications and installs the CI that syncs those declarations into the FetchCord project.
+Manages multiple Discord applications and their assets. The FetchCord org calls one command to deploy and declare those assets.
 
-You keep the manifests and the Discord user token here. FetchCord receives application catalogs through a workflow this tool writes into that repo. The public workflow never receives the Discord token.
+Discord credentials stay in this repo. FetchCord only dispatches a job.
 
-## Commands
+## Contract
 
 ```bash
-pip install -e ".[dev]"
-appkit validate apps/
-appkit plan apps/
-appkit apply apps/ --no-dry-run          # private; requires DISCORD_USER_TOKEN
-appkit sync-fetchcord /path/to/FetchCord
-appkit setup-fetchcord /path/to/FetchCord
+appkit fetchcord sync /path/to/FetchCord
+appkit fetchcord deploy /path/to/FetchCord --apply
+appkit fetchcord install /path/to/FetchCord
 ```
 
-`setup-fetchcord` writes:
+`install` writes a caller workflow into the FetchCord checkout. That workflow does not contain a Discord token. It sends `fetchcord-deploy` to this repo. This repo then applies assets if asked, and opens a pull request with the updated catalogs.
 
-- `.github/workflows/sync-discord-assets.yml` — manual job that checks out this repo and declares catalogs into `fetch_cord/resources`
-- `.github/discord-appkit.yml` — secret names and repo refs, never token values
+## On the FetchCord org
 
-On the FetchCord repository, set `APPKIT_READ_TOKEN` (read access to this private repo). Do not set `DISCORD_USER_TOKEN` there.
+Set `APPKIT_DISPATCH_TOKEN` (permission to send `repository_dispatch` to this repo). Do not set `DISCORD_USER_TOKEN` there.
+
+## On this repo
+
+- Environment `discord-portal`: `DISCORD_USER_TOKEN`
+- Secret `FETCHCORD_SYNC_TOKEN`: permission to push a branch and open a pull request on `fetchcord/FetchCord`
 
 See [docs/integration-fetchcord.md](docs/integration-fetchcord.md).

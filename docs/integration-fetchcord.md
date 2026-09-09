@@ -1,40 +1,42 @@
-# FetchCord integration
+# How FetchCord calls appkit
 
-discord-appkit declares Discord applications. Its job for FetchCord is to sync those declarations into `fetch_cord/resources` and to install the CI that does that sync on the FetchCord project.
+discord-appkit owns the Discord applications and asset files. FetchCord does not talk to the Discord API. It calls appkit, and appkit writes the catalogs back.
 
-## What gets declared
-
-FetchCord testing loads `fetch_cord/resources/<name>.json` as `id -> [patterns]`.
-
-`appkit sync-fetchcord` writes the application-id catalogs from this repo's lockfile:
-
-- `distro` -> `os.json`
-- `cpu` -> `cpus.json`
-- `terminal` -> `terminal.json`
-- `motherboard` -> `motherboards.json`
-- `shell` -> `shell.json`
-
-Merge updates only IDs this lockfile manages. Other application IDs and asset-name catalogs (`gpus.json`, `desktop.json`, `windowmanager.json`, `system_types.json`) stay as they are.
-
-## Install the CI
-
-From a FetchCord checkout:
-
-```bash
-appkit setup-fetchcord .
+```
+FetchCord workflow_dispatch
+        |
+        |  repository_dispatch  (APPKIT_DISPATCH_TOKEN)
+        v
+discord-appkit fetchcord-deploy
+        |
+        |  optional apply        (DISCORD_USER_TOKEN, private environment)
+        |  appkit fetchcord sync
+        v
+pull request on fetchcord/FetchCord
+        fetch_cord/resources/*.json
 ```
 
-That writes the workflow and a config file. Commit those files on FetchCord. Then add one GitHub secret on that repository:
+The same code path is available locally:
 
-- `APPKIT_READ_TOKEN` — a GitHub token that can read this private repo
+```bash
+appkit fetchcord sync /path/to/FetchCord
+appkit fetchcord deploy /path/to/FetchCord --apply
+```
 
-Do not add `DISCORD_USER_TOKEN` to FetchCord. Creating and uploading Discord assets stays on the private `deploy-discord` workflow in this repo, bound to the `discord-portal` environment.
+## Install the caller
 
-## Loop
+```bash
+appkit fetchcord install /path/to/FetchCord
+```
 
-1. Change a manifest or asset in this repo.
-2. Pull-request CI here runs `validate` and `plan`. No Discord token.
-3. A maintainer runs **Deploy Discord applications** here when Discord itself must change.
-4. On FetchCord, run **sync-discord-assets**. It checks out this repo, declares the catalogs, and opens a pull request if `fetch_cord/resources` changed.
+Commit `.github/workflows/deploy-discord-assets.yml` and `.github/discord-appkit.yml` on FetchCord.
 
-The installed workflow is `workflow_dispatch` only and refuses to run unless `github.repository` is `fetchcord/FetchCord`.
+## Secrets
+
+| Secret | Where | Used for |
+| --- | --- | --- |
+| `APPKIT_DISPATCH_TOKEN` | FetchCord org | call this repo |
+| `DISCORD_USER_TOKEN` | this repo, environment `discord-portal` | create apps and upload assets |
+| `FETCHCORD_SYNC_TOKEN` | this repo | open the catalog pull request |
+
+`APPKIT_DISPATCH_TOKEN` is a GitHub token, not a Discord token. The public workflow is `workflow_dispatch` only and runs only when `github.repository` is `fetchcord/FetchCord`.

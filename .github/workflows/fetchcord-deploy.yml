@@ -1,0 +1,57 @@
+name: fetchcord-deploy
+
+# Called by the FetchCord org (repository_dispatch) or by a maintainer here.
+# This is the only job that may use DISCORD_USER_TOKEN.
+on:
+  repository_dispatch:
+    types: [fetchcord-deploy]
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Upload assets to Discord before syncing catalogs
+        type: boolean
+        default: false
+      fetchcord_ref:
+        description: FetchCord ref to update
+        type: string
+        default: testing
+
+jobs:
+  sync:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.apply == false) ||
+      (github.event_name == 'repository_dispatch' && github.event.client_payload.apply != true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: sync catalogs
+        env:
+          FETCHCORD_SYNC_TOKEN: ${{ secrets.FETCHCORD_SYNC_TOKEN }}
+          FETCHCORD_REF: ${{ github.event.client_payload.fetchcord_ref || inputs.fetchcord_ref }}
+        run: bash .github/scripts/fetchcord-call.sh
+
+  deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.apply == true) ||
+      (github.event_name == 'repository_dispatch' && github.event.client_payload.apply == true)
+    runs-on: ubuntu-latest
+    environment: discord-portal
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: deploy assets and sync catalogs
+        env:
+          DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
+          FETCHCORD_SYNC_TOKEN: ${{ secrets.FETCHCORD_SYNC_TOKEN }}
+          FETCHCORD_REF: ${{ github.event.client_payload.fetchcord_ref || inputs.fetchcord_ref }}
+          APPLY: "true"
+        run: bash .github/scripts/fetchcord-call.sh
