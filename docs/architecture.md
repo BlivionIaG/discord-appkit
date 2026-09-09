@@ -1,15 +1,18 @@
 # Architecture
 
-This repo is public. It manages Discord applications and publishes the catalogs FetchCord syncs.
+This tool manages Discord applications and assets, and writes the CI that syncs the resulting catalogs into another project.
 
 ```
 apps/*.yaml + assets/*
         |
         v
-appkit fetchcord publish     export/fetchcord/
+appkit plan / apply
         |
         v
-FetchCord pulls the public URL and merges fetch_cord/resources
+state/ids.lock.json
+        |
+        v
+appkit emit --format <consumer> --out <dir>
 ```
 
-Live upload to Discord uses `DISCORD_USER_TOKEN` on a protected environment. Catalog sync does not.
+`appkit ci init` writes that emit step into the consumer repository. FetchCord uses `--format fetchcord-testing` and `--out fetch_cord/resources`. The tool is not limited to that format.

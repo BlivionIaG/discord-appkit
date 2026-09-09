@@ -46,26 +46,33 @@ jobs:
 
       - name: pull published catalogs
         env:
-          CATALOG_URL: https://raw.githubusercontent.com/__APPKIT_REPO__/__APPKIT_REF__/export/fetchcord
+          CATALOG_URL: https://raw.githubusercontent.com/__APPKIT_REPO__/__APPKIT_REF__/export/catalog.json
         run: |
           set -euo pipefail
           mkdir -p /tmp/appkit-export
-          curl -fsSL "$CATALOG_URL/index.json" -o /tmp/appkit-export/index.json
+          curl -fsSL "$CATALOG_URL" -o /tmp/appkit-export/catalog.json
           python - <<'PY'
-          import json, os, urllib.request
+          import json
           from pathlib import Path
 
-          base = os.environ["CATALOG_URL"].rstrip("/")
-          index = json.loads(Path("/tmp/appkit-export/index.json").read_text(encoding="utf-8"))
-          export = Path("/tmp/appkit-export")
-          for name in index["files"]:
-              if not name.endswith(".json") or "/" in name or name == "index.json":
-                  raise SystemExit(f"refusing unexpected catalog file: {name}")
-              urllib.request.urlretrieve(f"{base}/{name}", export / name)
+          catalog = json.loads(Path("/tmp/appkit-export/catalog.json").read_text(encoding="utf-8"))
+          files = {}
+          mapping = {
+              "distro": "os.json",
+              "cpu": "cpus.json",
+              "terminal": "terminal.json",
+              "motherboard": "motherboards.json",
+              "shell": "shell.json",
+          }
+          for app in catalog.get("applications", []):
+              name = mapping.get(app.get("category"))
+              app_id = str(app.get("applicationId", ""))
+              if not name or not app_id.isdigit():
+                  continue
+              files.setdefault(name, {})[app_id] = list(app.get("keys") or [])
 
           dest = Path("fetch_cord/resources")
-          for name in index["files"]:
-              incoming = json.loads((export / name).read_text(encoding="utf-8"))
+          for name, incoming in files.items():
               path = dest / name
               current = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
               if not isinstance(current, dict):

@@ -1,32 +1,19 @@
-# How FetchCord syncs assets
+# Using the tool from FetchCord CI
 
-This repo is the public source for Discord application catalogs. FetchCord pulls that source and merges it. No token is required for the pull.
+FetchCord is a consumer. The tool is not FetchCord-specific.
 
-```
-apps/*.yaml + assets/*
-        |
-        v
-appkit fetchcord publish
-        |
-        v
-export/fetchcord/          public URL, raw.githubusercontent.com
-        |
-        v
-FetchCord CI               curl index.json, merge into fetch_cord/resources
-```
-
-Install the pull job into a FetchCord checkout:
+From a FetchCord checkout:
 
 ```bash
-appkit fetchcord install /path/to/FetchCord
+appkit ci init . --format fetchcord-testing --out fetch_cord/resources
 ```
 
-That writes a workflow with no secrets. It downloads `export/fetchcord` and merges managed application IDs. Asset-name catalogs such as `gpus.json` are not in the export, so they stay as FetchCord owns them.
-
-Uploading the actual images to Discord is separate, and stays on a protected environment in this repo:
+That writes `.github/workflows/discord-assets.yml`. The workflow checks out this tool and runs:
 
 ```bash
-appkit fetchcord deploy /path/to/FetchCord --apply
+appkit emit --lock .appkit/state/ids.lock.json --format fetchcord-testing --out fetch_cord/resources --merge
 ```
 
-`DISCORD_USER_TOKEN` is an environment secret. It is not committed, and FetchCord never receives it.
+`--merge` updates application IDs this lockfile manages and leaves other keys in place. No Discord token is written into the FetchCord workflow.
+
+Uploading images to Discord is `appkit apply --no-dry-run` on a protected environment, not part of the FetchCord sync job.

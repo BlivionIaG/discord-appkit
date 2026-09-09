@@ -1,20 +1,19 @@
 # discord-appkit
 
-Public tool for managing Discord applications and their assets.
-
-FetchCord does not talk to Discord. It pulls a published catalog from this repo and merges it into `fetch_cord/resources`.
+Tool for managing Discord applications and assets, and for writing the CI that syncs them.
 
 ```bash
-appkit fetchcord publish
-appkit fetchcord sync /path/to/FetchCord
-appkit fetchcord install /path/to/FetchCord
-appkit fetchcord deploy /path/to/FetchCord --apply
+appkit validate apps/
+appkit plan apps/
+appkit apply apps/ --no-dry-run
+appkit publish
+appkit ci init /path/to/project --format fetchcord-testing --out fetch_cord/resources
 ```
 
-The public catalog lives at `export/fetchcord/` and is served from:
+`ci init` writes a workflow into the project that will run it. On FetchCord that is:
 
-`https://raw.githubusercontent.com/BlivionIaG/discord-appkit/<ref>/export/fetchcord/index.json`
+```bash
+appkit ci init . --format fetchcord-testing --out fetch_cord/resources
+```
 
-Uploading images to Discord still needs `DISCORD_USER_TOKEN`, and only on a protected GitHub Environment. That token is never required to sync catalogs.
-
-See [docs/integration-fetchcord.md](docs/integration-fetchcord.md).
+Commit that workflow. FetchCord CI then checks out this tool and syncs catalogs into `fetch_cord/resources`. The Discord token stays on a protected environment and is not written into that workflow.

@@ -16,6 +16,6 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: appkit validate apps/
       - run: appkit plan apps/
-      - run: appkit fetchcord publish
-      - run: git diff --exit-code export/fetchcord
+      - run: appkit publish
+      - run: git diff --exit-code export/catalog.json
       - run: pytest -q
