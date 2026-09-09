@@ -1,18 +1,15 @@
 # Architecture
 
-discord-appkit manages Discord applications and assets. FetchCord calls it; it does not embed Discord credentials.
+This repo is public. It manages Discord applications and publishes the catalogs FetchCord syncs.
 
 ```
 apps/*.yaml + assets/*
         |
         v
-appkit fetchcord deploy --apply     private token, same command CI runs
+appkit fetchcord publish     export/fetchcord/
         |
         v
-state/ids.lock.json
-        |
-        v
-appkit fetchcord sync               declare catalogs into fetch_cord/resources
+FetchCord pulls the public URL and merges fetch_cord/resources
 ```
 
-The FetchCord org entry point is `repository_dispatch` event `fetchcord-deploy`, installed by `appkit fetchcord install`.
+Live upload to Discord uses `DISCORD_USER_TOKEN` on a protected environment. Catalog sync does not.

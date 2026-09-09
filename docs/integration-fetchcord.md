@@ -1,42 +1,32 @@
-# How FetchCord calls appkit
+# How FetchCord syncs assets
 
-discord-appkit owns the Discord applications and asset files. FetchCord does not talk to the Discord API. It calls appkit, and appkit writes the catalogs back.
+This repo is the public source for Discord application catalogs. FetchCord pulls that source and merges it. No token is required for the pull.
 
 ```
-FetchCord workflow_dispatch
+apps/*.yaml + assets/*
         |
-        |  repository_dispatch  (APPKIT_DISPATCH_TOKEN)
         v
-discord-appkit fetchcord-deploy
+appkit fetchcord publish
         |
-        |  optional apply        (DISCORD_USER_TOKEN, private environment)
-        |  appkit fetchcord sync
         v
-pull request on fetchcord/FetchCord
-        fetch_cord/resources/*.json
+export/fetchcord/          public URL, raw.githubusercontent.com
+        |
+        v
+FetchCord CI               curl index.json, merge into fetch_cord/resources
 ```
 
-The same code path is available locally:
-
-```bash
-appkit fetchcord sync /path/to/FetchCord
-appkit fetchcord deploy /path/to/FetchCord --apply
-```
-
-## Install the caller
+Install the pull job into a FetchCord checkout:
 
 ```bash
 appkit fetchcord install /path/to/FetchCord
 ```
 
-Commit `.github/workflows/deploy-discord-assets.yml` and `.github/discord-appkit.yml` on FetchCord.
+That writes a workflow with no secrets. It downloads `export/fetchcord` and merges managed application IDs. Asset-name catalogs such as `gpus.json` are not in the export, so they stay as FetchCord owns them.
 
-## Secrets
+Uploading the actual images to Discord is separate, and stays on a protected environment in this repo:
 
-| Secret | Where | Used for |
-| --- | --- | --- |
-| `APPKIT_DISPATCH_TOKEN` | FetchCord org | call this repo |
-| `DISCORD_USER_TOKEN` | this repo, environment `discord-portal` | create apps and upload assets |
-| `FETCHCORD_SYNC_TOKEN` | this repo | open the catalog pull request |
+```bash
+appkit fetchcord deploy /path/to/FetchCord --apply
+```
 
-`APPKIT_DISPATCH_TOKEN` is a GitHub token, not a Discord token. The public workflow is `workflow_dispatch` only and runs only when `github.repository` is `fetchcord/FetchCord`.
+`DISCORD_USER_TOKEN` is an environment secret. It is not committed, and FetchCord never receives it.

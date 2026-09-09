@@ -15,7 +15,10 @@ from .secrets import load_user_token
 from .setup_fetchcord import (
     DEFAULT_APPKIT_REPO,
     DEFAULT_FETCHCORD_REPO,
+    EXPORT_DIR,
+    catalog_url,
     current_ref,
+    publish_export,
     setup_checkout,
     sync_checkout,
 )
@@ -165,6 +168,17 @@ def _deploy_to_checkout(checkout: Path, lock_path: Path, apply: bool) -> list[st
     return sync_checkout(checkout, lock_path)
 
 
+@fetchcord_app.command("publish")
+def fetchcord_publish(
+    out: Path = typer.Option(EXPORT_DIR, "--out"),
+    lock_path: Path = typer.Option(DEFAULT_LOCK, "--lock"),
+) -> None:
+    """Write the public catalog FetchCord pulls. No Discord token."""
+    names = publish_export(out, lock_path)
+    typer.echo(f"published {len(names)} catalog file(s) to {out}")
+    typer.echo(catalog_url(DEFAULT_APPKIT_REPO, current_ref()))
+
+
 @fetchcord_app.command("sync")
 def fetchcord_sync(
     checkout: Path = typer.Argument(..., help="FetchCord checkout to update"),
@@ -206,8 +220,7 @@ def fetchcord_install(
     )
     for path in written:
         typer.echo(f"wrote {path}")
-    typer.echo("On fetchcord/FetchCord, set APPKIT_DISPATCH_TOKEN (permission to dispatch this repo).")
-    typer.echo("Do not set DISCORD_USER_TOKEN on the FetchCord org.")
+    typer.echo("Commit the workflow. FetchCord will pull the public catalog. No token is required.")
 
 
 @app.command("sync-fetchcord")
@@ -240,6 +253,5 @@ def setup_fetchcord(
     )
     for path in written:
         typer.echo(f"wrote {path}")
-    typer.echo("On fetchcord/FetchCord, set APPKIT_DISPATCH_TOKEN (permission to dispatch this repo).")
-    typer.echo("Do not set DISCORD_USER_TOKEN on the FetchCord org.")
+    typer.echo("Commit the workflow. FetchCord will pull the public catalog. No token is required.")
 

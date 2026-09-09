@@ -1,26 +1,20 @@
 # discord-appkit
 
-Manages multiple Discord applications and their assets. The FetchCord org calls one command to deploy and declare those assets.
+Public tool for managing Discord applications and their assets.
 
-Discord credentials stay in this repo. FetchCord only dispatches a job.
-
-## Contract
+FetchCord does not talk to Discord. It pulls a published catalog from this repo and merges it into `fetch_cord/resources`.
 
 ```bash
+appkit fetchcord publish
 appkit fetchcord sync /path/to/FetchCord
-appkit fetchcord deploy /path/to/FetchCord --apply
 appkit fetchcord install /path/to/FetchCord
+appkit fetchcord deploy /path/to/FetchCord --apply
 ```
 
-`install` writes a caller workflow into the FetchCord checkout. That workflow does not contain a Discord token. It sends `fetchcord-deploy` to this repo. This repo then applies assets if asked, and opens a pull request with the updated catalogs.
+The public catalog lives at `export/fetchcord/` and is served from:
 
-## On the FetchCord org
+`https://raw.githubusercontent.com/BlivionIaG/discord-appkit/<ref>/export/fetchcord/index.json`
 
-Set `APPKIT_DISPATCH_TOKEN` (permission to send `repository_dispatch` to this repo). Do not set `DISCORD_USER_TOKEN` there.
-
-## On this repo
-
-- Environment `discord-portal`: `DISCORD_USER_TOKEN`
-- Secret `FETCHCORD_SYNC_TOKEN`: permission to push a branch and open a pull request on `fetchcord/FetchCord`
+Uploading images to Discord still needs `DISCORD_USER_TOKEN`, and only on a protected GitHub Environment. That token is never required to sync catalogs.
 
 See [docs/integration-fetchcord.md](docs/integration-fetchcord.md).

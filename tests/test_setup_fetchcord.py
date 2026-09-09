@@ -2,7 +2,12 @@ from pathlib import Path
 
 import yaml
 
-from discord_appkit.setup_fetchcord import render_workflow, setup_checkout, sync_checkout
+from discord_appkit.setup_fetchcord import (
+    publish_export,
+    render_workflow,
+    setup_checkout,
+    sync_checkout,
+)
 
 
 def _checkout(tmp_path: Path) -> Path:
@@ -26,23 +31,28 @@ def test_sync_declares_managed_ids_and_keeps_the_rest(tmp_path: Path):
     assert '"amd"' in (checkout / "fetch_cord/resources/gpus.json").read_text(encoding="utf-8")
 
 
-def test_install_writes_a_caller_without_discord_token(tmp_path: Path):
+def test_publish_writes_a_public_index(tmp_path: Path):
+    names = publish_export(tmp_path / "export", Path("state/ids.lock.json"))
+    index = yaml.safe_load((tmp_path / "export" / "index.json").read_text(encoding="utf-8"))
+    assert "os.json" in names
+    assert index["files"] == names
+    assert "gpus.json" not in index["files"]
+
+
+def test_install_writes_a_public_pull_without_tokens(tmp_path: Path):
     checkout = _checkout(tmp_path)
     written = setup_checkout(checkout, sync=False)
-    workflow = (checkout / ".github/workflows/deploy-discord-assets.yml").read_text(encoding="utf-8")
+    workflow = (checkout / ".github/workflows/sync-discord-assets.yml").read_text(encoding="utf-8")
     config = (checkout / ".github/discord-appkit.yml").read_text(encoding="utf-8")
-    assert checkout / ".github/workflows/deploy-discord-assets.yml" in written
-    assert "APPKIT_DISPATCH_TOKEN" in workflow
-    assert "repository_dispatch" not in workflow or "fetchcord-deploy" in workflow
-    assert "secrets.DISCORD_USER_TOKEN" not in workflow
-    assert "event_type" in workflow
-    assert "ghp_" not in workflow
-    assert "APPKIT_DISPATCH_TOKEN" in config
+    assert checkout / ".github/workflows/sync-discord-assets.yml" in written
+    assert "export/fetchcord" in workflow
+    assert "secrets." not in workflow
+    assert "APPKIT_DISPATCH_TOKEN" not in workflow
+    assert "catalog:" in config
 
 
-def test_rendered_workflow_only_dispatches():
+def test_rendered_workflow_only_pulls_public_catalog():
     text = render_workflow("BlivionIaG/discord-appkit", "master", "fetchcord/FetchCord")
-    assert "secrets.APPKIT_DISPATCH_TOKEN" in text
+    assert "raw.githubusercontent.com/BlivionIaG/discord-appkit/master/export/fetchcord" in text
     assert "secrets.DISCORD_USER_TOKEN" not in text
     assert "github.repository == 'fetchcord/FetchCord'" in text
-    assert "/repos/BlivionIaG/discord-appkit/dispatches" in text
