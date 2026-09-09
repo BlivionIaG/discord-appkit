@@ -1,0 +1,28 @@
+name: plan-comment
+on:
+  pull_request:
+    paths: ["apps/**", "assets/**", "state/**", "src/**", "catalog/**"]
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: validate and plan
+        run: |
+          appkit import-ids catalog/fetchcord-testing
+          appkit validate apps/ | tee /tmp/appkit-out.txt
+          appkit plan apps/ | tee -a /tmp/appkit-out.txt
+      - name: comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = '```\n' + fs.readFileSync('/tmp/appkit-out.txt','utf8') + '\n```';
+            github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: '### appkit plan\n' + body});
