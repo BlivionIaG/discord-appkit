@@ -1,8 +1,8 @@
 # discord-appkit
 
-Declarative Discord application deployment: manifests in git, a lockfile of assigned IDs, and a plan/apply loop.
+Tooling that declares Discord applications and installs the CI that syncs those declarations into the FetchCord project.
 
-This toolkit is consumer-agnostic. FetchCord is the first adapter, not a dependency of `validate`, `plan`, or `apply`.
+You keep the manifests and the Discord user token here. FetchCord receives application catalogs through a workflow this tool writes into that repo. The public workflow never receives the Discord token.
 
 ## Commands
 
@@ -10,15 +10,16 @@ This toolkit is consumer-agnostic. FetchCord is the first adapter, not a depende
 pip install -e ".[dev]"
 appkit validate apps/
 appkit plan apps/
-appkit apply apps/                       # dry-run
-appkit apply apps/ --no-dry-run          # live; requires DISCORD_USER_TOKEN
-appkit emit --format lock --out state/ids.lock.json
-appkit emit --format fetchcord-testing --out /tmp/fetchcord-resources --merge
-appkit import-ids catalog/fetchcord-testing
+appkit apply apps/ --no-dry-run          # private; requires DISCORD_USER_TOKEN
+appkit sync-fetchcord /path/to/FetchCord
+appkit setup-fetchcord /path/to/FetchCord
 ```
 
-`apply` defaults to dry-run and never runs from pull-request CI. Live apply is a manual workflow on a protected GitHub Environment. The token is read from the environment and is never printed.
+`setup-fetchcord` writes:
 
-## FetchCord
+- `.github/workflows/sync-discord-assets.yml` — manual job that checks out this repo and declares catalogs into `fetch_cord/resources`
+- `.github/discord-appkit.yml` — secret names and repo refs, never token values
 
-See [docs/integration-fetchcord.md](docs/integration-fetchcord.md). Catalog emit/import lives in `discord_appkit.adapters.fetchcord`. Public FetchCord CI must not receive `DISCORD_USER_TOKEN`.
+On the FetchCord repository, set `APPKIT_READ_TOKEN` (read access to this private repo). Do not set `DISCORD_USER_TOKEN` there.
+
+See [docs/integration-fetchcord.md](docs/integration-fetchcord.md).

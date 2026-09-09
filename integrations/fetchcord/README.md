@@ -1,9 +1,9 @@
 # FetchCord adapter files
 
-These files are the public-repo side of the integration. They do not contain tokens.
+Prefer `appkit setup-fetchcord <checkout>` to install the sync CI. That command is the source of the workflow written into FetchCord.
 
-- `validate_resources.py` — catalog shape check. Safe to run in public CI.
-- `workflows/validate-catalogs.yml` — copy to FetchCord `.github/workflows/`. No Discord secrets.
-- `workflows/deploy-discord-apps.yml` — optional, locked-down deploy. Prefer the private `deploy-discord` workflow in this repo.
+These copies are the same public-safe pieces:
 
-See [docs/integration-fetchcord.md](../../docs/integration-fetchcord.md).
+- `validate_resources.py` — catalog shape check, no credentials
+- `workflows/validate-catalogs.yml` — optional extra check for FetchCord CI
+- `workflows/deploy-discord-apps.yml` — not used by setup; Discord apply stays in the private repo

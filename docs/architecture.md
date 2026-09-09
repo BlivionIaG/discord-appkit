@@ -1,33 +1,24 @@
 # Architecture
 
-discord-appkit deploys Discord applications. It does not know what a consumer does with the resulting application IDs.
+discord-appkit declares Discord applications and syncs those declarations into FetchCord.
 
 ```
 apps/*.yaml + assets/*
         |
         v
-   appkit plan          dry comparison vs lockfile
+   appkit plan / apply     bind application, upload assets (private token)
         |
         v
-   appkit apply         create/bind application, upload assets
+state/ids.lock.json
         |
         v
-state/ids.lock.json     source of truth for assigned snowflakes
+   appkit sync-fetchcord   declare catalogs into fetch_cord/resources
         |
         v
-   appkit emit          consumer adapter (optional)
+FetchCord CI               installed by appkit setup-fetchcord
 ```
 
-## Core vs adapter
-
-Core commands (`validate`, `plan`, `apply`, `emit --format lock`) only understand:
-
-- a manifest (`apiVersion: appkit.discord/v1`)
-- application name, description, flags, assets
-- an optional pinned `existingId`
-- labels (`category`, `keys`, `vendor`, `annotations`) that apply stores and emitters may read
-
-FetchCord catalog shapes live in `discord_appkit.adapters.fetchcord`. Adding another consumer means another adapter, not a change to apply.
+`validate`, `plan`, and `apply` do not know FetchCord file names. The FetchCord checkout layout lives in `discord_appkit.setup_fetchcord` and `discord_appkit.adapters.fetchcord`.
 
 ## Why a lockfile
 
@@ -35,6 +26,8 @@ Discord application snowflakes are assigned at create time. Re-running apply mus
 
 ## Auth
 
-Creating applications and uploading Rich Presence assets is a Developer Portal user-token flow. A bot token is not enough. Use a dedicated owning account.
+Creating applications and uploading Rich Presence assets needs a Developer Portal user token. A bot token is not enough. Use a dedicated owning account.
 
-The token is a `SecretStr`. It is not included in plan output, string conversions, or Discord API error text. Do not commit it, do not put it in a public repository, and do not make it available to pull-request workflows.
+That token stays on the private `discord-portal` environment. It is a `SecretStr` and is not included in plan output, string conversions, or Discord API error text.
+
+The workflow installed into FetchCord uses `APPKIT_READ_TOKEN` only, so it can read this repo and write catalogs. It must not receive `DISCORD_USER_TOKEN`.
