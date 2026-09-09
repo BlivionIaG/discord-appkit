@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/appkit/app.schema.json",
+  "title": "DiscordApplication",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": { "const": "appkit.discord/v1" },
+    "kind": { "const": "DiscordApplication" },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "category"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "category": {
+          "type": "string",
+          "enum": ["distro", "cpu", "gpu", "terminal", "motherboard", "shell", "desktop", "windowmanager", "version", "bot", "other"]
+        },
+        "keys": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "vendor": { "type": "string" }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["description"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "existingId": {
+          "type": "string",
+          "pattern": "^[0-9]{17,20}$",
+          "description": "Pin to an already-created Discord application instead of creating one."
+        },
+        "flags": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "richPresence": { "type": "boolean" },
+            "bot": { "type": "boolean" }
+          }
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "file"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "maxLength": 32 },
+              "type": { "type": "string", "enum": ["rich", "cover"], "default": "rich" },
+              "file": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
