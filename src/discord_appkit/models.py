@@ -41,6 +41,7 @@ class Spec(BaseModel):
     existingId: str | None = None
     flags: AppFlags = Field(default_factory=AppFlags)
     assets: list[AssetSpec] = Field(default_factory=list)
+    commands: list[dict] = Field(default_factory=list)
 
 
 class DiscordApplication(BaseModel):
@@ -51,12 +52,33 @@ class DiscordApplication(BaseModel):
     source: Path | None = None
 
 
+class AssetLock(BaseModel):
+    file: str
+    sha256: str | None = None
+    discord_asset_id: str | None = None
+
+
 class LockEntry(BaseModel):
     name: str
     category: str
     application_id: str
     keys: list[str] = Field(default_factory=list)
-    assets: dict[str, str] = Field(default_factory=dict)
+    vendor: str | None = None
+    assets: dict[str, AssetLock | str] = Field(default_factory=dict)
+
+    def asset_file(self, name: str) -> str | None:
+        raw = self.assets.get(name)
+        if raw is None:
+            return None
+        if isinstance(raw, str):
+            return raw
+        return raw.file
+
+    def asset_sha(self, name: str) -> str | None:
+        raw = self.assets.get(name)
+        if raw is None or isinstance(raw, str):
+            return None
+        return raw.sha256
 
 
 class Lockfile(BaseModel):
