@@ -1,0 +1,17 @@
+apiVersion: appkit.discord/v1
+kind: DiscordApplication
+metadata:
+  name: fetchcord-cpu-ryzen7
+  category: cpu
+  vendor: amd
+  keys:
+    - "ryzen 7"
+spec:
+  description: FetchCord Rich Presence — AMD Ryzen 7
+  existingId: "740752899054895105"
+  flags:
+    richPresence: true
+  assets:
+    - name: ryzen7
+      type: rich
+      file: assets/cpu/ryzen7.png
