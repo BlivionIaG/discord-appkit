@@ -1,6 +1,8 @@
 # discord-appkit
 
-Private toolkit to make Discord application deployment declarative and reproducible for FetchCord 3 (`testing` / fastfetch) and 2.x.
+Declarative Discord application deployment: manifests in git, a lockfile of assigned IDs, and a plan/apply loop.
+
+This toolkit is consumer-agnostic. FetchCord is the first adapter, not a dependency of `validate`, `plan`, or `apply`.
 
 ## Commands
 
@@ -8,12 +10,15 @@ Private toolkit to make Discord application deployment declarative and reproduci
 pip install -e ".[dev]"
 appkit validate apps/
 appkit plan apps/
-appkit apply apps/ --no-dry-run          # binds existingId; uploads if DISCORD_USER_TOKEN is set
-appkit emit --format fetchcord --out fetchcord_ids.generated.json
-appkit emit --format fetchcord-testing --out /tmp/fetchcord-resources
+appkit apply apps/                       # dry-run
+appkit apply apps/ --no-dry-run          # live; requires DISCORD_USER_TOKEN
+appkit emit --format lock --out state/ids.lock.json
+appkit emit --format fetchcord-testing --out /tmp/fetchcord-resources --merge
 appkit import-ids catalog/fetchcord-testing
 ```
 
-`apply` never runs from CI. The `plan-comment` workflow posts `validate` + `plan` on PRs that touch apps/assets. `emit-fetchcord` is workflow_dispatch only.
+`apply` defaults to dry-run and never runs from pull-request CI. Live apply is a manual workflow on a protected GitHub Environment. The token is read from the environment and is never printed.
 
-Auth for live apply is `DISCORD_USER_TOKEN` (Developer Portal owner account). Do not commit it.
+## FetchCord
+
+See [docs/integration-fetchcord.md](docs/integration-fetchcord.md). Catalog emit/import lives in `discord_appkit.adapters.fetchcord`. Public FetchCord CI must not receive `DISCORD_USER_TOKEN`.

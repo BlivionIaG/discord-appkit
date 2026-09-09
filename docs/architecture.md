@@ -1,49 +1,40 @@
 # Architecture
 
-## Desired loop
+discord-appkit deploys Discord applications. It does not know what a consumer does with the resulting application IDs.
 
 ```
-git (apps/*.yaml + assets/*)
+apps/*.yaml + assets/*
         |
         v
-   appkit plan     ---- dry comparison vs lockfile + (later) live portal
+   appkit plan          dry comparison vs lockfile
         |
         v
-   appkit apply    ---- create/bind application, upload assets
+   appkit apply         create/bind application, upload assets
         |
         v
-state/ids.lock.json
+state/ids.lock.json     source of truth for assigned snowflakes
         |
         v
-   appkit emit --format fetchcord
-        |
-        v
-fetch_cord/resources/fetchcord_ids.json   (copied into FetchCord testing)
+   appkit emit          consumer adapter (optional)
 ```
+
+## Core vs adapter
+
+Core commands (`validate`, `plan`, `apply`, `emit --format lock`) only understand:
+
+- a manifest (`apiVersion: appkit.discord/v1`)
+- application name, description, flags, assets
+- an optional pinned `existingId`
+- labels (`category`, `keys`, `vendor`, `annotations`) that apply stores and emitters may read
+
+FetchCord catalog shapes live in `discord_appkit.adapters.fetchcord`. Adding another consumer means another adapter, not a change to apply.
 
 ## Why a lockfile
 
-Discord application snowflakes are assigned at create time. Re-running apply
-must not spawn a second Arch app. `existingId` in the manifest pins a known
-app; the lockfile records what apply last believed was live.
+Discord application snowflakes are assigned at create time. Re-running apply must not spawn a second application. `existingId` pins a known app; the lockfile records what apply last believed was live.
 
-## FetchCord 3 / testing
+## Auth
 
-`fetchcord/FetchCord` branch `testing` is the 3.0 rewrite (Python 3.12+,
-fastfetch). It still consumes an ID map with the same categories as 2.7.7
-(`distro`, `cpu`, `gpu`, `terminal`, `motherboard`, …).
+Creating applications and uploading Rich Presence assets is a Developer Portal user-token flow. A bot token is not enough. Use a dedicated owning account.
 
-First real import job: explode current `fetchcord_ids.json` into one manifest
-per application ID (many keys already share an ID, e.g. thinkpad/ideapad/lenovo).
-Group by ID, not by key.
-
-## Auth reality
-
-Creating applications and uploading RPC assets is a Developer Portal user-token
-flow. A bot token is not enough. Keep the owning account dedicated if possible.
-
-## Out of scope for v0
-
-- Discord Dispatch / Activities builds
-- Slash-command registration (easy later: PUT /applications/{id}/commands)
-- Multi-owner orgs
+The token is a `SecretStr`. It is not included in plan output, string conversions, or Discord API error text. Do not commit it, do not put it in a public repository, and do not make it available to pull-request workflows.

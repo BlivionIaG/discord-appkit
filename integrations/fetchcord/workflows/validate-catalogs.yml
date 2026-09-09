@@ -1,0 +1,63 @@
+name: validate-catalogs
+
+# Drop this file into fetchcord/FetchCord at .github/workflows/validate-catalogs.yml
+# It checks committed catalogs only. Do not add DISCORD_USER_TOKEN here.
+on:
+  pull_request:
+    paths:
+      - "fetch_cord/resources/**"
+  push:
+    branches: [testing, master]
+
+jobs:
+  catalogs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: validate resource catalogs
+        run: |
+          python - <<'PY'
+          import json, re, sys
+          from pathlib import Path
+
+          snowflake = re.compile(r"^[0-9]{17,20}$")
+          app_files = ("os.json", "cpus.json", "terminal.json", "motherboards.json")
+          mixed_files = ("shell.json",)
+          asset_files = ("gpus.json", "desktop.json", "windowmanager.json", "system_types.json")
+          root = Path("fetch_cord/resources")
+
+          def patterns(value, path, allow_scalar):
+              if isinstance(value, str):
+                  if not allow_scalar:
+                      raise SystemExit(f"{path}: expected a list of patterns")
+                  return
+              if not isinstance(value, list) or not value:
+                  raise SystemExit(f"{path}: expected a non-empty list of patterns")
+              for pattern in value:
+                  if not isinstance(pattern, str) or not pattern:
+                      raise SystemExit(f"{path}: pattern must be a non-empty string")
+                  re.compile(pattern)
+
+          for name in app_files + mixed_files + asset_files:
+              path = root / name
+              if not path.is_file():
+                  raise SystemExit(f"missing {path}")
+              data = json.loads(path.read_text(encoding="utf-8"))
+              if not isinstance(data, dict) or not data:
+                  raise SystemExit(f"{name}: expected a non-empty object")
+              snowflakes = 0
+              for key, value in data.items():
+                  patterns(value, f"{name}:{key}", name in asset_files)
+                  if snowflake.match(str(key)):
+                      snowflakes += 1
+              if name in app_files and snowflakes != len(data):
+                  raise SystemExit(f"{name}: every key must be a Discord application id")
+              if name in mixed_files and snowflakes < 1:
+                  raise SystemExit(f"{name}: expected at least one application id key")
+          print("ok")
+          PY

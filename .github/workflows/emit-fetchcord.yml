@@ -4,11 +4,13 @@ on:
 jobs:
   emit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -e .
-      - run: appkit import-ids catalog/fetchcord-testing && appkit emit --format fetchcord-testing --out /tmp/fetchcord-resources
+      - run: appkit emit --format fetchcord-testing --out /tmp/fetchcord-resources
       - run: find /tmp/fetchcord-resources -type f

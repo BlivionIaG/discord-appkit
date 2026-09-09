@@ -1,0 +1,61 @@
+name: deploy-discord-apps
+
+# OPTIONAL and discouraged. Prefer deploy on the private discord-appkit repo.
+#
+# Copy into fetchcord/FetchCord only if public-repo deploy is unavoidable.
+# Bind this job to a protected GitHub Environment. Do not add pull_request
+# or pull_request_target. Do not print secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply live changes to Discord
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: discord-portal
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: checkout private appkit
+        env:
+          APPKIT_READ_TOKEN: ${{ secrets.APPKIT_READ_TOKEN }}
+        run: |
+          set +x
+          if [ -z "$APPKIT_READ_TOKEN" ]; then
+            echo "APPKIT_READ_TOKEN is not set"
+            exit 1
+          fi
+          git -c "http.extraheader=AUTHORIZATION: bearer ${APPKIT_READ_TOKEN}" \
+            clone --depth 1 \
+            https://github.com/BlivionIaG/discord-appkit.git /tmp/discord-appkit
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: plan
+        working-directory: /tmp/discord-appkit
+        run: |
+          pip install -e .
+          appkit validate apps/
+          appkit plan apps/
+
+      - name: apply
+        if: inputs.apply
+        working-directory: /tmp/discord-appkit
+        env:
+          DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
+        run: |
+          set +x
+          if [ -z "$DISCORD_USER_TOKEN" ]; then
+            echo "DISCORD_USER_TOKEN is not set on the discord-portal environment"
+            exit 1
+          fi
+          appkit apply apps/ --no-dry-run

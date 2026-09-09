@@ -1,0 +1,59 @@
+name: deploy-discord
+
+# Live Discord apply. Manual only. The user token lives on the
+# discord-portal environment and is never printed.
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply live changes to Discord
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-discord
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: discord-portal
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+
+      - name: plan
+        run: |
+          appkit validate apps/
+          appkit plan apps/
+
+      - name: apply
+        if: inputs.apply
+        env:
+          DISCORD_USER_TOKEN: ${{ secrets.DISCORD_USER_TOKEN }}
+        run: |
+          set +x
+          if [ -z "$DISCORD_USER_TOKEN" ]; then
+            echo "DISCORD_USER_TOKEN is not set on the discord-portal environment"
+            exit 1
+          fi
+          appkit apply apps/ --no-dry-run
+
+      - name: commit lockfile
+        if: inputs.apply
+        run: |
+          git config user.name "discord-appkit"
+          git config user.email "appkit@users.noreply.github.com"
+          git add state/ids.lock.json
+          if git diff --cached --quiet; then
+            echo "lockfile unchanged"
+          else
+            git commit -m "chore: update application lockfile after Discord apply"
+            git push origin HEAD
+          fi

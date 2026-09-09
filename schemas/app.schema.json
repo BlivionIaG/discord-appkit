@@ -16,15 +16,20 @@
         "name": { "type": "string", "minLength": 1 },
         "category": {
           "type": "string",
-          "enum": ["distro", "cpu", "gpu", "terminal", "motherboard", "shell", "desktop", "windowmanager", "version", "bot", "other"]
+          "minLength": 1,
+          "description": "Consumer label used by emitters. Not interpreted by apply."
         },
         "keys": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
-          "minItems": 1,
           "uniqueItems": true
         },
-        "vendor": { "type": "string" }
+        "vendor": { "type": "string" },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Free-form labels for a consumer adapter. Core apply ignores these."
+        }
       }
     },
     "spec": {
@@ -58,6 +63,10 @@
               "file": { "type": "string" }
             }
           }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "type": "object" }
         }
       }
     }
